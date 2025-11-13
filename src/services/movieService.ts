@@ -9,19 +9,20 @@ interface FetchMoviesParams {
   page?: number;
 }
 
-interface TMDBResponse {
+export interface TMDBResponse {
   results: Movie[];
+  total_pages: number;
 }
 
 export const fetchMovies = async ({
   query,
   page = 1,
-}: FetchMoviesParams): Promise<Movie[]> => {
+}: FetchMoviesParams): Promise<TMDBResponse> => {
   const response = await axios.get<TMDBResponse>(API_URL, {
     params: { query, page },
     headers: {
       Authorization: `Bearer ${TOKEN}`,
     },
   });
-  return response.data.results;
+  return response.data;
 };

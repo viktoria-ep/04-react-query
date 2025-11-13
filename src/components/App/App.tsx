@@ -1,42 +1,66 @@
 import { useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
+import { useQuery } from "@tanstack/react-query";
+import ReactPaginate from "react-paginate";
 import SearchBar from "../SearchBar/SearchBar";
 import MovieGrid from "../MovieGrid/MovieGrid";
 import MovieModal from "../MovieModal/MovieModal";
 import Loader from "../Loader/Loader";
 import ErrorMessage from "../ErrorMessage/ErrorMessage";
-import { fetchMovies } from "../../services/movieService";
+import { fetchMovies, TMDBResponse } from "../../services/movieService";
 import { Movie } from "../../types/movie";
 import styles from "./App.module.css";
 
-function App() {
-  const [movies, setMovies] = useState<Movie[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(false);
+export default function App() {
+  const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
 
-  const handleSearch = async (query: string) => {
-    setLoading(true);
-    setError(false);
-    setMovies([]);
-    try {
-      const results = await fetchMovies({ query });
-      if (!results.length) toast.error("No movies found for your request.");
-      setMovies(results);
-    } catch {
-      setError(true);
-    } finally {
-      setLoading(false);
-    }
+  const { data, isError, isFetching } = useQuery<TMDBResponse, Error>({
+    queryKey: ["movies", query, page],
+    queryFn: (): Promise<TMDBResponse> =>
+      fetchMovies({ query, page }).then((res) => {
+        if (!res.results || res.results.length === 0) {
+          toast.error("No movies found for your request.");
+        }
+        return res;
+      }),
+    enabled: !!query,
+  });
+
+  const handleSearch = (newQuery: string) => {
+    if (newQuery === query) return;
+    setQuery(newQuery);
+    setPage(1);
   };
+
+  const movies = data?.results ?? [];
+  const totalPages = data?.total_pages ?? 0;
 
   return (
     <div className={styles.app}>
       <Toaster />
       <SearchBar onSubmit={handleSearch} />
-      {loading && <Loader />}
-      {error && <ErrorMessage />}
+
+      {isFetching && <Loader />}
+      {isError && <ErrorMessage />}
+
+      {movies.length > 0 && totalPages > 1 && (
+        <ReactPaginate
+          pageCount={totalPages}
+          pageRangeDisplayed={5}
+          marginPagesDisplayed={1}
+          onPageChange={({ selected }) => setPage(selected + 1)}
+          forcePage={page - 1}
+          containerClassName={styles.pagination}
+          activeClassName={styles.active}
+          nextLabel="→"
+          previousLabel="←"
+        />
+      )}
+
       <MovieGrid movies={movies} onSelect={setSelectedMovie} />
+
       {selectedMovie && (
         <MovieModal
           movie={selectedMovie}
@@ -46,5 +70,3 @@ function App() {
     </div>
   );
 }
-
-export default App;
