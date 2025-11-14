@@ -26,6 +26,7 @@ export default function App() {
         return res;
       }),
     enabled: !!query,
+    placeholderData: { results: [], total_pages: 0 },
   });
 
   const handleSearch = (newQuery: string) => {
